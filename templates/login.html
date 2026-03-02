@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login - Private Gallery</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="login-body">
+    <div class="login-container">
+        <h2>Restricted Access</h2>
+        <p>Please enter the master password.</p>
+        
+        {% if error %}
+            <p class="error-msg">{{ error }}</p>
+        {% endif %}
+
+        <form action="/login" method="POST">
+            <input type="password" name="password" placeholder="Enter Password" required autofocus>
+            <button type="submit" class="login-btn">Enter</button>
+        </form>
+    </div>
+</body>
+</html>

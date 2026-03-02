@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Private Feed</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body class="feed-body">
+
+    <nav class="top-nav">
+        <h1>For You</h1>
+        <div class="nav-controls">
+            <button id="toggle-view-btn" class="icon-btn">🔲 Grid</button>
+            <a href="/logout" class="logout-btn">Lock</a>
+        </div>
+    </nav>
+
+    <header id="profile-header" class="profile-header hidden">
+        <div class="profile-banner"></div>
+        <div class="profile-info">
+            <div class="profile-avatar">🍤</div>
+            <h2>👌</h2>
+            <p class="bio">Welcome to my secret stash. Unlock my posts to see more... 😉</p>
+            <div class="stats">
+                <span><strong id="post-count">0</strong> Posts</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="tiktok-feed" id="feed-container">
+        </main>
+
+    <button class="fab" id="open-upload-btn">+</button>
+
+    <div class="modal-overlay" id="upload-modal">
+        <div class="upload-panel">
+            <div class="modal-header">
+                <h3>Create New Post</h3>
+                <button class="close-btn" id="close-upload-btn">×</button>
+            </div>
+            <div class="upload-controls">
+                <input type="file" id="media-upload" accept="image/*,video/mp4,video/webm,video/quicktime" class="file-input">
+                <input type="number" id="price-input" placeholder="Price in € (e.g. 20)" min="10" max="50">
+                <textarea id="caption-input" placeholder="Write a caption..." rows="3"></textarea>
+                <button id="post-btn" class="post-button">Upload to Feed</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- AUTO-LOCK TIMER ---
+        let inactivityTimer;
+        const IDLE_TIMEOUT_MS = 3 * 60 * 1000; 
+        function resetTimer() {
+            clearTimeout(inactivityTimer);
+            inactivityTimer = setTimeout(() => window.location.href = '/logout', IDLE_TIMEOUT_MS);
+        }
+        window.onload = resetTimer;
+        document.onmousemove = resetTimer;
+        document.onkeydown = resetTimer;
+        document.ontouchstart = resetTimer; 
+        document.onscroll = resetTimer;
+
+        // --- VIEW TOGGLE LOGIC ---
+        let isGridView = false;
+        const toggleBtn = document.getElementById('toggle-view-btn');
+        const profileHeader = document.getElementById('profile-header');
+        const feedContainer = document.getElementById('feed-container');
+
+        toggleBtn.addEventListener('click', () => {
+            isGridView = !isGridView;
+            if (isGridView) {
+                toggleBtn.innerText = '📱 Feed';
+                profileHeader.classList.remove('hidden');
+                feedContainer.classList.add('grid-view');
+                document.body.classList.add('grid-active'); 
+                document.body.style.overflowY = 'auto'; 
+            } else {
+                toggleBtn.innerText = '🔲 Grid';
+                profileHeader.classList.add('hidden');
+                feedContainer.classList.remove('grid-view');
+                document.body.classList.remove('grid-active'); 
+                document.body.style.overflowY = 'hidden'; 
+                feedContainer.scrollTop = 0; 
+            }
+        });
+
+        // --- APP LOGIC ---
+        document.addEventListener('DOMContentLoaded', () => {
+            loadPosts();
+
+            const modal = document.getElementById('upload-modal');
+            document.getElementById('open-upload-btn').addEventListener('click', () => modal.style.display = 'flex');
+            document.getElementById('close-upload-btn').addEventListener('click', () => modal.style.display = 'none');
+
+            document.getElementById('post-btn').addEventListener('click', async () => {
+                const fileInput = document.getElementById('media-upload');
+                const captionInput = document.getElementById('caption-input');
+                const priceInput = document.getElementById('price-input');
+                const postBtn = document.getElementById('post-btn');
+                
+                if (fileInput.files.length === 0) {
+                    alert('Please select a photo or video first!');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('media', fileInput.files[0]);
+                formData.append('caption', captionInput.value);
+                formData.append('price', priceInput.value);
+
+                postBtn.innerText = 'Uploading...';
+
+                try {
+                    const response = await fetch('/api/upload', {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (response.ok) {
+                        fileInput.value = '';
+                        captionInput.value = '';
+                        priceInput.value = '';
+                        postBtn.innerText = 'Upload to Feed';
+                        modal.style.display = 'none';
+                        loadPosts(); 
+                    } else {
+                        alert('Upload failed.');
+                        postBtn.innerText = 'Upload to Feed';
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('Server error.');
+                }
+            });
+        });
+
+        function getUnlockedPosts() {
+            return JSON.parse(localStorage.getItem('unlocked_posts') || '[]');
+        }
+
+        function unlockPost(postId, btnElement) {
+            btnElement.innerText = "Processing...";
+            btnElement.disabled = true;
+            
+            setTimeout(() => {
+                let unlocked = getUnlockedPosts();
+                if (!unlocked.includes(postId)) {
+                    unlocked.push(postId);
+                    localStorage.setItem('unlocked_posts', JSON.stringify(unlocked));
+                }
+                loadPosts(); 
+            }, 1500);
+        }
+
+        async function likePost(postId, likeCountElement) {
+            let currentLikes = parseInt(likeCountElement.innerText);
+            likeCountElement.innerText = currentLikes + 1;
+            likeCountElement.parentElement.classList.add('pop');
+            setTimeout(() => likeCountElement.parentElement.classList.remove('pop'), 200);
+
+            await fetch('/api/like', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id: postId })
+            });
+        }
+
+        async function loadPosts() {
+            const response = await fetch('/api/posts');
+            const posts = await response.json();
+            const unlockedPosts = getUnlockedPosts();
+            
+            feedContainer.innerHTML = '';
+            document.getElementById('post-count').innerText = posts.length;
+
+            if (posts.length === 0) {
+                feedContainer.innerHTML = '<div class="empty-state">No posts yet. Switch to Grid view to add one!</div>';
+                return;
+            }
+
+            posts.forEach(post => {
+                const isUnlocked = unlockedPosts.includes(post.id);
+                const postElement = document.createElement('article');
+                postElement.className = 'tiktok-post';
+                
+                let mediaElement = '';
+                if (post.type === 'video') {
+                    mediaElement = `<video src="${post.image_url}" class="tiktok-image ${!isUnlocked ? 'blurred' : ''}" autoplay loop muted playsinline></video>`;
+                } else {
+                    mediaElement = `<img src="${post.image_url}" class="tiktok-image ${!isUnlocked ? 'blurred' : ''}">`;
+                }
+
+                let paywallHtml = '';
+                if (!isUnlocked) {
+                    paywallHtml = `
+                        <div class="paywall-overlay">
+                            🔒 Locked
+                            <button class="pay-btn" onclick="unlockPost('${post.id}', this)">Unlock €${post.price}</button>
+                        </div>
+                    `;
+                }
+
+                postElement.innerHTML = `
+                    <button class="delete-btn" onclick="deletePost('${post.id}')">🗑️</button>
+                    ${mediaElement}
+                    ${paywallHtml}
+                    
+                    <div class="side-actions">
+                        <div class="action-btn" onclick="likePost('${post.id}', this.querySelector('.like-count'))">
+                            ❤️
+                            <span class="like-count">${post.likes || 0}</span>
+                        </div>
+                    </div>
+
+                    <div class="tiktok-overlay">
+                        <div class="tiktok-caption">
+                            <span class="date">${post.date}</span>
+                            <p>${post.caption}</p>
+                        </div>
+                    </div>
+                `;
+                feedContainer.appendChild(postElement);
+            });
+        }
+
+        async function deletePost(postId) {
+            if (!confirm("Delete this photo/video forever?")) return;
+            try {
+                const response = await fetch('/api/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: postId })
+                });
+                if (response.ok) loadPosts();
+            } catch (error) { console.error('Error:', error); }
+        }
+    </script>
+</body>
+</html>
