@@ -1,0 +1,13 @@
+@echo off
+echo Installing required security modules...
+python -m pip install flask python-dotenv waitress werkzeug flask-limiter
+
+echo Starting secure Python server...
+start /b python app.py
+
+echo Waiting 5 seconds for the server to wake up...
+timeout /t 5 /nobreak > NUL
+
+echo Starting Ngrok secure tunnel...
+ngrok http 5000
+pause
