@@ -1,38 +1,29 @@
 [
     {
-        "id": "20260302123452",
-        "image_url": "/static/images/20260302123452_kucing_mikir_bagaimana_ya_.jpg",
+        "id": "20260303003709",
+        "image_url": "/api/media/20260303003709_1000092858.jpg",
         "type": "image",
         "caption": "",
-        "price": 41,
-        "likes": 0,
-        "date": "March 02, 2026"
+        "price": 20,
+        "likes": 113,
+        "date": "March 03, 2026"
     },
     {
-        "id": "20260302115235",
-        "image_url": "/static/images/20260302115235_1000097358.mp4",
+        "id": "20260303003411",
+        "image_url": "/api/media/20260303003411_1000095223.mp4",
         "type": "video",
         "caption": "",
-        "price": 11,
-        "likes": 8,
-        "date": "March 02, 2026"
+        "price": 37,
+        "likes": 11,
+        "date": "March 03, 2026"
     },
     {
-        "id": "20260302115223",
-        "image_url": "/static/images/20260302115223_1000097324.jpg",
-        "type": "image",
+        "id": "20260303003321",
+        "image_url": "/api/media/20260303003321_1000097045.mp4",
+        "type": "video",
         "caption": "",
-        "price": 40,
-        "likes": 15,
-        "date": "March 02, 2026"
-    },
-    {
-        "id": "20260302115200",
-        "image_url": "/static/images/20260302115200_1000097576.jpg",
-        "type": "image",
-        "caption": "Kedy",
-        "price": 19,
-        "likes": 3,
-        "date": "March 02, 2026"
+        "price": 24,
+        "likes": 10,
+        "date": "March 03, 2026"
     }
 ]

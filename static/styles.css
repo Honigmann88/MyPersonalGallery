@@ -48,7 +48,7 @@
 textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; resize: none; }
 .post-button { background-color: #008ccf; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; }
 
-/* --- VERSION 4.0: LIKES, PAYWALL, DELETE --- */
+/* --- MEDIA INTERACTIONS (LIKES, PAYWALL, DELETE) --- */
 input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-family: inherit; }
 .blurred { filter: blur(25px) brightness(0.7); }
 
@@ -64,7 +64,7 @@ input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ddd; borde
 
 .delete-btn { display: none; }
 
-/* --- VERSION 5.0: GRID VIEW & PROFILE --- */
+/* --- GRID VIEW & PROFILE --- */
 .nav-controls { display: flex; gap: 15px; align-items: center; }
 .icon-btn { background: rgba(255, 255, 255, 0.2); border: none; color: white; padding: 8px 15px; border-radius: 20px; font-size: 0.9em; cursor: pointer; font-weight: bold; transition: background 0.2s; }
 .icon-btn:hover { background: rgba(255, 255, 255, 0.4); }
@@ -85,25 +85,80 @@ input[type="number"] { width: 100%; padding: 10px; border: 1px solid #ddd; borde
 .grid-view .tiktok-image { object-fit: cover !important; }
 .grid-view .side-actions, .grid-view .tiktok-overlay { display: none !important; }
 
-.grid-view .delete-btn {
-    display: flex !important;
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background: rgba(0, 0, 0, 0.6);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    font-size: 14px;
-    width: 30px;
-    height: 30px;
-    border-radius: 50%;
-    cursor: pointer;
-    z-index: 10;
-    justify-content: center;
-    align-items: center;
-    transition: background 0.2s;
-}
-
+.grid-view .delete-btn { display: flex !important; position: absolute; top: 5px; right: 5px; background: rgba(0, 0, 0, 0.6); border: 1px solid rgba(255, 255, 255, 0.3); color: white; font-size: 14px; width: 30px; height: 30px; border-radius: 50%; cursor: pointer; z-index: 10; justify-content: center; align-items: center; transition: background 0.2s; }
 .grid-view .delete-btn:hover { background: rgba(255, 77, 77, 0.9); }
 .grid-view .paywall-overlay { font-size: 0.9em; text-align: center; }
 .grid-view .pay-btn { padding: 8px 12px; font-size: 0.85em; }
+
+/* --- NATIVE CHAT SYSTEM STYLES --- */
+.chat-panel {
+    position: fixed;
+    top: 0;
+    bottom: 0; /* Ensures it hits the bottom of mobile screens perfectly */
+    right: -100%; 
+    width: 100%;
+    max-width: 400px; 
+    background: #111;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.3s ease-in-out;
+    box-shadow: -5px 0 15px rgba(0,0,0,0.5);
+}
+
+.chat-panel.open {
+    right: 0; 
+}
+
+.chat-header {
+    background: #1e1e1e;
+    padding: 20px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #333;
+}
+
+.chat-messages {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.chat-input-area {
+    padding: 15px;
+    padding-bottom: calc(15px + env(safe-area-inset-bottom)); /* iOS/Android Safe Area Fix */
+    background: #1e1e1e;
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #333;
+}
+
+.chat-input-area input {
+    flex-grow: 1;
+    padding: 12px;
+    border-radius: 25px;
+    border: none;
+    background: #333;
+    color: white;
+    outline: none;
+}
+
+.chat-input-area button {
+    background: #008ccf;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+.chat-bubble { max-width: 80%; padding: 12px 16px; border-radius: 20px; position: relative; word-wrap: break-word; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+.chat-bubble.mine { background: #008ccf; color: white; align-self: flex-end; border-bottom-right-radius: 5px; }
+.chat-bubble.theirs { background: #333; color: white; align-self: flex-start; border-bottom-left-radius: 5px; }
+.chat-sender { font-size: 0.75em; font-weight: bold; opacity: 0.7; margin-bottom: 4px; display: block; }
+.chat-time { font-size: 0.7em; opacity: 0.5; display: block; text-align: right; margin-top: 5px; }

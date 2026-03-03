@@ -11,6 +11,7 @@
     <nav class="top-nav">
         <h1>For You</h1>
         <div class="nav-controls">
+            <button id="chat-toggle-btn" class="icon-btn">💬 Chat</button>
             <button id="toggle-view-btn" class="icon-btn">🔲 Grid</button>
             <a href="/logout" class="logout-btn">Lock</a>
         </div>
@@ -20,8 +21,8 @@
         <div class="profile-banner"></div>
         <div class="profile-info">
             <div class="profile-avatar">🍤</div>
-            <h2>👌</h2>
-            <p class="bio">Welcome to my secret stash. Unlock my posts to see more... 😉</p>
+            <h2>👌👌👌</h2>
+            <p class="bio">Welcome to my secret stash.</p>
             <div class="stats">
                 <span><strong id="post-count">0</strong> Posts</span>
             </div>
@@ -48,19 +49,113 @@
         </div>
     </div>
 
+    <div id="chat-panel" class="chat-panel">
+        <div class="chat-header">
+            <div style="display: flex; align-items: center; gap: 15px;">
+                <h3>Secret Messages</h3>
+                <button id="change-name-btn" style="background: none; border: none; color: #008ccf; cursor: pointer; font-size: 0.8em; font-weight: bold;">✎ Edit Name</button>
+            </div>
+            <button id="close-chat-btn" class="close-btn">×</button>
+        </div>
+        <div class="chat-messages" id="chat-messages">
+            </div>
+        <div class="chat-input-area">
+            <input type="text" id="chat-input" placeholder="Message..." autocomplete="off">
+            <button id="send-chat-btn">Send</button>
+        </div>
+    </div>
+
     <script>
+        // --- XSS SANITIZER (SECURITY) ---
+        function safeText(str) {
+            if (!str) return "";
+            return str.replace(/[&<>'"]/g, tag => ({
+                '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
+            }[tag] || tag));
+        }
+
         // --- AUTO-LOCK TIMER ---
         let inactivityTimer;
-        const IDLE_TIMEOUT_MS = 3 * 60 * 1000; 
+        const IDLE_TIMEOUT_MS = 60 * 60 * 1000; // Updated to match 1 hour session
         function resetTimer() {
             clearTimeout(inactivityTimer);
             inactivityTimer = setTimeout(() => window.location.href = '/logout', IDLE_TIMEOUT_MS);
         }
-        window.onload = resetTimer;
-        document.onmousemove = resetTimer;
-        document.onkeydown = resetTimer;
-        document.ontouchstart = resetTimer; 
+        window.onload = resetTimer; document.onmousemove = resetTimer;
+        document.onkeydown = resetTimer; document.ontouchstart = resetTimer; 
         document.onscroll = resetTimer;
+
+        // --- IDENTITY MANAGEMENT FOR CHAT ---
+        let myName = localStorage.getItem('chat_name');
+
+        // --- CHAT LOGIC ---
+        const chatPanel = document.getElementById('chat-panel');
+        const chatMessages = document.getElementById('chat-messages');
+        const chatInput = document.getElementById('chat-input');
+        let chatPollInterval = null;
+
+        document.getElementById('chat-toggle-btn').addEventListener('click', () => {
+            if (!myName) {
+                myName = prompt("Enter your display name for the chat:");
+                if (myName) localStorage.setItem('chat_name', myName);
+                else myName = "Anonymous";
+            }
+            chatPanel.classList.add('open');
+            loadMessages();
+            chatPollInterval = setInterval(loadMessages, 2000); 
+        });
+
+        document.getElementById('close-chat-btn').addEventListener('click', () => {
+            chatPanel.classList.remove('open');
+            clearInterval(chatPollInterval); 
+        });
+
+        document.getElementById('change-name-btn').addEventListener('click', () => {
+            const newName = prompt("Enter your new display name:", myName);
+            if (newName && newName.trim() !== "") {
+                myName = newName.trim();
+                localStorage.setItem('chat_name', myName);
+                loadMessages(); 
+            }
+        });
+
+        document.getElementById('send-chat-btn').addEventListener('click', sendMessage);
+        chatInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') sendMessage(); });
+
+        async function sendMessage() {
+            const text = chatInput.value.trim();
+            if (!text) return;
+            chatInput.value = ''; 
+            
+            await fetch('/api/messages', {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ sender: myName, text: text })
+            });
+            loadMessages(); 
+        }
+
+        async function loadMessages() {
+            try {
+                const response = await fetch('/api/messages');
+                const messages = await response.json();
+                
+                if (chatMessages.children.length !== messages.length) {
+                    chatMessages.innerHTML = '';
+                    messages.forEach(msg => {
+                        const isMe = msg.sender === myName;
+                        const bubble = document.createElement('div');
+                        bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'}`;
+                        bubble.innerHTML = `
+                            <span class="chat-sender">${safeText(msg.sender)}</span>
+                            <p>${safeText(msg.text)}</p>
+                            <span class="chat-time">${msg.time}</span>
+                        `;
+                        chatMessages.appendChild(bubble);
+                    });
+                    chatMessages.scrollTop = chatMessages.scrollHeight;
+                }
+            } catch (error) { console.error("Chat sync error"); }
+        }
 
         // --- VIEW TOGGLE LOGIC ---
         let isGridView = false;
@@ -86,7 +181,7 @@
             }
         });
 
-        // --- APP LOGIC ---
+        // --- MEDIA UPLOAD & DISPLAY LOGIC ---
         document.addEventListener('DOMContentLoaded', () => {
             loadPosts();
 
@@ -100,10 +195,7 @@
                 const priceInput = document.getElementById('price-input');
                 const postBtn = document.getElementById('post-btn');
                 
-                if (fileInput.files.length === 0) {
-                    alert('Please select a photo or video first!');
-                    return;
-                }
+                if (fileInput.files.length === 0) { alert('Please select a photo or video first!'); return; }
 
                 const formData = new FormData();
                 formData.append('media', fileInput.files[0]);
@@ -113,37 +205,21 @@
                 postBtn.innerText = 'Uploading...';
 
                 try {
-                    const response = await fetch('/api/upload', {
-                        method: 'POST',
-                        body: formData
-                    });
-
+                    const response = await fetch('/api/upload', { method: 'POST', body: formData });
                     if (response.ok) {
-                        fileInput.value = '';
-                        captionInput.value = '';
-                        priceInput.value = '';
+                        fileInput.value = ''; captionInput.value = ''; priceInput.value = '';
                         postBtn.innerText = 'Upload to Feed';
                         modal.style.display = 'none';
                         loadPosts(); 
-                    } else {
-                        alert('Upload failed.');
-                        postBtn.innerText = 'Upload to Feed';
-                    }
-                } catch (error) {
-                    console.error('Error:', error);
-                    alert('Server error.');
-                }
+                    } else { alert('Upload failed.'); postBtn.innerText = 'Upload to Feed'; }
+                } catch (error) { console.error('Error:', error); alert('Server error.'); }
             });
         });
 
-        function getUnlockedPosts() {
-            return JSON.parse(localStorage.getItem('unlocked_posts') || '[]');
-        }
+        function getUnlockedPosts() { return JSON.parse(localStorage.getItem('unlocked_posts') || '[]'); }
 
         function unlockPost(postId, btnElement) {
-            btnElement.innerText = "Processing...";
-            btnElement.disabled = true;
-            
+            btnElement.innerText = "Processing..."; btnElement.disabled = true;
             setTimeout(() => {
                 let unlocked = getUnlockedPosts();
                 if (!unlocked.includes(postId)) {
@@ -159,12 +235,7 @@
             likeCountElement.innerText = currentLikes + 1;
             likeCountElement.parentElement.classList.add('pop');
             setTimeout(() => likeCountElement.parentElement.classList.remove('pop'), 200);
-
-            await fetch('/api/like', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id: postId })
-            });
+            await fetch('/api/like', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: postId }) });
         }
 
         async function loadPosts() {
@@ -176,8 +247,7 @@
             document.getElementById('post-count').innerText = posts.length;
 
             if (posts.length === 0) {
-                feedContainer.innerHTML = '<div class="empty-state">No posts yet. Switch to Grid view to add one!</div>';
-                return;
+                feedContainer.innerHTML = '<div class="empty-state">No posts yet. Switch to Grid view to add one!</div>'; return;
             }
 
             posts.forEach(post => {
@@ -194,31 +264,18 @@
 
                 let paywallHtml = '';
                 if (!isUnlocked) {
-                    paywallHtml = `
-                        <div class="paywall-overlay">
-                            🔒 Locked
-                            <button class="pay-btn" onclick="unlockPost('${post.id}', this)">Unlock €${post.price}</button>
-                        </div>
-                    `;
+                    paywallHtml = `<div class="paywall-overlay">🔒 Locked<button class="pay-btn" onclick="unlockPost('${post.id}', this)">Unlock €${post.price}</button></div>`;
                 }
 
                 postElement.innerHTML = `
                     <button class="delete-btn" onclick="deletePost('${post.id}')">🗑️</button>
                     ${mediaElement}
                     ${paywallHtml}
-                    
                     <div class="side-actions">
-                        <div class="action-btn" onclick="likePost('${post.id}', this.querySelector('.like-count'))">
-                            ❤️
-                            <span class="like-count">${post.likes || 0}</span>
-                        </div>
+                        <div class="action-btn" onclick="likePost('${post.id}', this.querySelector('.like-count'))">❤️<span class="like-count">${post.likes || 0}</span></div>
                     </div>
-
                     <div class="tiktok-overlay">
-                        <div class="tiktok-caption">
-                            <span class="date">${post.date}</span>
-                            <p>${post.caption}</p>
-                        </div>
+                        <div class="tiktok-caption"><span class="date">${post.date}</span><p>${safeText(post.caption)}</p></div>
                     </div>
                 `;
                 feedContainer.appendChild(postElement);
@@ -226,15 +283,9 @@
         }
 
         async function deletePost(postId) {
-            if (!confirm("Delete this photo/video forever?")) return;
-            try {
-                const response = await fetch('/api/delete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ id: postId })
-                });
-                if (response.ok) loadPosts();
-            } catch (error) { console.error('Error:', error); }
+            if (!confirm("Delete this forever?")) return;
+            await fetch('/api/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: postId }) });
+            loadPosts();
         }
     </script>
 </body>
